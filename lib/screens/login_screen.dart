@@ -25,6 +25,9 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordCtrl.text.trim(),
     );
 
+    // ✅ Tambahan: cek apakah widget masih terpasang sebelum setState
+    if (!mounted) return;
+
     setState(() => _loading = false);
 
     if (error != null && mounted) {

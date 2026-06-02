@@ -94,10 +94,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final counter      = state['counter']      ?? 0;
           final lampuRumah   = state['lampuRumah']   ?? false;
           final isMalam      = state['isMalam']      ?? false;
-          final kamarAdmin   = Map<String, dynamic>.from(
-              state['kamarAdmin'] ?? {'lampu': false, 'led': false});
-          final kamarUser    = Map<String, dynamic>.from(
-              state['kamarUser']  ?? {'lampu': false, 'led': false});
+          
+          // 🔧 Perubahan: gunakan 'kipas' bukan 'led'
+          final kamarAdmin = Map<String, dynamic>.from(
+              state['kamarAdmin'] ?? {'lampu': false, 'kipas': false});
+          final kamarUser = Map<String, dynamic>.from(
+              state['kamarUser']  ?? {'lampu': false, 'kipas': false});
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -171,14 +173,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : null,
                 ),
                 const SizedBox(height: 8),
+                // 🔧 Perubahan: gunakan 'kipas' bukan 'led'
                 _OutputTile(
                   label: 'Kipas Kamar Admin',
                   icon: Icons.wind_power,
-                  active: kamarAdmin['led'] ?? false,
+                  active: kamarAdmin['kipas'] ?? false,
                   canControl: _role == 'admin',
                   onToggle: _role == 'admin'
                       ? (val) async {
-                          await _db.updateState('kamarAdmin/led', val);
+                          await _db.updateState('kamarAdmin/kipas', val);
                         }
                       : null,
                 ),
@@ -197,13 +200,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
+                // 🔧 Perubahan: gunakan 'kipas' bukan 'led'
                 _OutputTile(
                   label: 'Kipas Kamar User',
                   icon: Icons.wind_power,
-                  active: kamarUser['led'] ?? false,
+                  active: kamarUser['kipas'] ?? false,
                   canControl: true,
                   onToggle: (val) async {
-                    await _db.updateState('kamarUser/led', val);
+                    await _db.updateState('kamarUser/kipas', val);
                   },
                 ),
                 const SizedBox(height: 32),
@@ -216,7 +220,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// ── Reusable widgets ─────────────────────────────────────
+// ── Reusable widgets (tidak berubah) ─────────────────────
 
 class _SectionTitle extends StatelessWidget {
   final String text;

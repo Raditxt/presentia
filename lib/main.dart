@@ -5,12 +5,21 @@ import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'services/mqtt_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // 🔌 Connect MQTT setelah Firebase siap
+  final mqtt = MqttService();
+  final connected = await mqtt.connect();
+  debugPrint(connected
+      ? '[APP] MQTT terhubung'
+      : '[APP] MQTT gagal — cek credentials HiveMQ');
+
   runApp(const PresentiaApp());
 }
 
@@ -35,7 +44,8 @@ class PresentiaApp extends StatelessWidget {
             return const SplashScreen();
           }
           if (snapshot.hasData) {
-            return const DashboardScreen();
+            // ⚠️ const dihapus karena DashboardScreen mungkin butuh MQTT instance
+            return DashboardScreen();
           }
           return const LoginScreen();
         },

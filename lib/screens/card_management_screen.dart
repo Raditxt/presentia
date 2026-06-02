@@ -147,7 +147,7 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: users.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final user = users[index];
               final role     = user['role']?.toString()    ?? 'user';

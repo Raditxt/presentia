@@ -248,7 +248,7 @@ class _RoleTile extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(8),
           color: selected
-              ? const Color(0xFF1E3A5F).withOpacity(0.07)
+              ? const Color(0xFF1E3A5F).withValues(alpha: 0.07)
               : Colors.transparent,
         ),
         child: Column(
