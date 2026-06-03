@@ -14,4 +14,6 @@ class MqttConfig {
   static const String topicCmdUser  = 'presentia/cmd/kamar_user';
   static const String topicCmdRumah = 'presentia/cmd/lampu_rumah';
   static const String topicStatus   = 'presentia/status';
+  static const String topicScanMode = 'presentia/cmd/scan_mode';
+  static const String topicScanResult = 'presentia/rfid/scan';
 }

@@ -1,14 +1,3 @@
-/*
-  PRESENTIA v2 — ESP32 #1 (PINTU UTAMA)
-  Wiring:
-    RFID RC522   → GPIO 5 (SS), 18 (SCK), 19 (MISO), 23 (MOSI), 4 (RST)
-    Relay #1 CH1 → GPIO 26 (solenoid 12V)
-    Relay #1 CH2 → GPIO 27 (lampu rumah)
-    VCC RFID & COM Relay#1 CH2 → 3.3V
-    VIN Relay#1 → 5V
-    GND semua bersama
-*/
-
 #include <SPI.h>
 #include <MFRC522.h>
 #include <WiFi.h>
@@ -17,41 +6,39 @@
 #include <time.h>
 
 // ========== KONFIGURASI WIFI & MQTT ==========
-const char* ssid = "WLC_CNAP";
-const char* password = "s4y4b1s4";
-
-const char* mqtt_server = "a281e75ee4d8417b9d81efb8897902da.s1.eu.hivemq.cloud";
-const int mqtt_port = 8883;
-const char* mqtt_user = "esp32_device";
-const char* mqtt_pass = "Raditya14";
-const char* mqtt_topic = "rumah/pintu/event";
-
-const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 7 * 3600;  // WIB
-const int daylightOffset_sec = 0;
+const char* ssid         = "KINTA";
+const char* password     = "Taufik04";
+const char* mqtt_server  = "x8af8fe7.ala.asia-southeast1.emqxsl.com";
+const int   mqtt_port    = 8883;
+const char* mqtt_user    = "esp32_device";
+const char* mqtt_pass    = "Raditya14";
+const char* mqtt_topic   = "presentia/pintu/event";  // ← diupdate
+const char* ntpServer        = "pool.ntp.org";
+const long  gmtOffset_sec    = 7 * 3600;
+const int   daylightOffset_sec = 0;
 
 // ========== PIN ==========
-#define SS_PIN        5
-#define RST_PIN       4
-#define RELAY_SOLENOID 26   // CH1 Relay #1 → solenoid pintu
-#define RELAY_RUMAH    27   // CH2 Relay #1 → lampu rumah
+#define SS_PIN         5
+#define RST_PIN        4
+#define RELAY_SOLENOID 26
+#define RELAY_RUMAH    27
 
-// ========== UID KARTU (ganti dengan milikmu) ==========
+// ========== UID KARTU ==========
 String adminUID = "F7 51 86 63";
 String userUID  = "61 07 C9 26";
 
 enum Role { ADMIN, USER, UNKNOWN };
-int counter = 0;
+int  counter      = 0;
 bool adminPresent = false;
-bool userPresent = false;
+bool userPresent  = false;
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 WiFiClientSecure secureClient;
 PubSubClient mqttClient(secureClient);
 
 // ========== RELAY ==========
-void setSolenoid(bool open) { digitalWrite(RELAY_SOLENOID, open ? LOW : HIGH); }
-void setLampuRumah(bool on) { digitalWrite(RELAY_RUMAH, on ? LOW : HIGH); }
+void setSolenoid(bool open)  { digitalWrite(RELAY_SOLENOID, open ? LOW : HIGH); }
+void setLampuRumah(bool on)  { digitalWrite(RELAY_RUMAH,    on   ? LOW : HIGH); }
 
 // ========== RFID ==========
 String readUID() {
@@ -67,7 +54,7 @@ String readUID() {
 
 Role getRole(String uid) {
   if (uid == adminUID) return ADMIN;
-  if (uid == userUID) return USER;
+  if (uid == userUID)  return USER;
   return UNKNOWN;
 }
 
@@ -91,11 +78,14 @@ void handleAdmin(String uid) {
   if (!adminPresent) {
     adminPresent = true; counter++;
     setSolenoid(true); delay(3000); setSolenoid(false);
-    updateOutputs(); publishEvent("ADMIN_MASUK");
+    updateOutputs();
+    publishEvent("ADMIN_MASUK");
     Serial.println("ADMIN MASUK");
   } else {
-    adminPresent = false; counter--; if (counter<0) counter=0;
-    updateOutputs(); publishEvent("ADMIN_KELUAR");
+    adminPresent = false;
+    counter--; if (counter < 0) counter = 0;
+    updateOutputs();
+    publishEvent("ADMIN_KELUAR");
     Serial.println("ADMIN KELUAR");
   }
 }
@@ -104,11 +94,14 @@ void handleUser(String uid) {
   if (!userPresent) {
     userPresent = true; counter++;
     setSolenoid(true); delay(3000); setSolenoid(false);
-    updateOutputs(); publishEvent("USER_MASUK");
+    updateOutputs();
+    publishEvent("USER_MASUK");
     Serial.println("USER MASUK");
   } else {
-    userPresent = false; counter--; if (counter<0) counter=0;
-    updateOutputs(); publishEvent("USER_KELUAR");
+    userPresent = false;
+    counter--; if (counter < 0) counter = 0;
+    updateOutputs();
+    publishEvent("USER_KELUAR");
     Serial.println("USER KELUAR");
   }
 }
@@ -118,8 +111,7 @@ void connectWiFi() {
   Serial.print("Menghubungkan WiFi");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(500); Serial.print(".");
   }
   Serial.println("\n✅ WiFi terhubung, IP: " + WiFi.localIP().toString());
 }
@@ -130,10 +122,7 @@ void syncTime() {
   time_t now = time(nullptr);
   int retry = 0;
   while (now < 100000 && retry < 20) {
-    delay(500);
-    now = time(nullptr);
-    retry++;
-    Serial.print(".");
+    delay(500); now = time(nullptr); retry++; Serial.print(".");
   }
   if (now > 100000) {
     Serial.println(" ✅ Waktu sinkron: " + String(ctime(&now)));
@@ -143,7 +132,7 @@ void syncTime() {
 }
 
 void connectMQTT() {
-  secureClient.setInsecure(); // Untuk demo, skip verifikasi sertifikat
+  secureClient.setInsecure();
   mqttClient.setServer(mqtt_server, mqtt_port);
   String clientId = "ESP32_Pintu_" + WiFi.macAddress();
   clientId.replace(":", "");
@@ -154,29 +143,29 @@ void connectMQTT() {
     } else {
       Serial.print("❌ gagal, rc=");
       Serial.print(mqttClient.state());
-      Serial.println(" coba lagi 10 detik");
+      Serial.println(" — coba lagi 10 detik");
       delay(10000);
     }
   }
 }
 
+// ========== SETUP ==========
 void setup() {
   Serial.begin(115200);
   SPI.begin();
   rfid.PCD_Init();
-  pinMode(RELAY_SOLENOID, OUTPUT);
-  pinMode(RELAY_RUMAH, OUTPUT);
-  digitalWrite(RELAY_SOLENOID, HIGH); // OFF
-  digitalWrite(RELAY_RUMAH, HIGH);    // OFF
+  pinMode(RELAY_SOLENOID, OUTPUT); digitalWrite(RELAY_SOLENOID, HIGH);
+  pinMode(RELAY_RUMAH,    OUTPUT); digitalWrite(RELAY_RUMAH,    HIGH);
 
   connectWiFi();
   syncTime();
   connectMQTT();
 
-  Serial.println("PRESENTIA #1 — PINTU UTAMA");
+  Serial.println("\nPRESENTIA #1 — PINTU UTAMA");
   Serial.println("Menunggu tap kartu...\n");
 }
 
+// ========== LOOP ==========
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("⚠️ WiFi putus, reconnect...");
@@ -190,13 +179,15 @@ void loop() {
   if (!rfid.PICC_IsNewCardPresent()) { delay(50); return; }
   if (!rfid.PICC_ReadCardSerial())   { delay(50); return; }
 
-  String uid = readUID();
-  Role role = getRole(uid);
+  String uid  = readUID();
+  Role   role = getRole(uid);
 
   switch (role) {
-    case ADMIN: handleAdmin(uid); break;
-    case USER:  handleUser(uid);  break;
-    default: Serial.println("ACCESS DENIED (UID tidak dikenal)"); break;
+    case ADMIN:   handleAdmin(uid); break;
+    case USER:    handleUser(uid);  break;
+    default:
+      Serial.println("ACCESS DENIED — UID: " + uid);
+      break;
   }
 
   rfid.PICC_HaltA();

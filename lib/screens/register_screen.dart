@@ -9,14 +9,13 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _nameCtrl     = TextEditingController();
-  final _emailCtrl    = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _authService  = AuthService();
+  final _authService = AuthService();
 
   bool _loading = false;
   bool _obscure = true;
-  String _selectedRole = 'admin'; // default
 
   Future<void> _register() async {
     if (_nameCtrl.text.isEmpty ||
@@ -36,11 +35,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
 
+    // Hardcode role = 'user'
     final error = await _authService.register(
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text.trim(),
       name: _nameCtrl.text.trim(),
-      role: _selectedRole,
+      role: 'user', // ← selalu user
     );
 
     setState(() => _loading = false);
@@ -58,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context); // kembali ke login
+      Navigator.pop(context);
     }
   }
 
@@ -135,50 +135,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscure
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+                            _obscure ? Icons.visibility_off : Icons.visibility,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscure = !_obscure),
+                          onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Role selector
-                    const Text(
-                      'Role',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _RoleTile(
-                            label: 'Admin',
-                            subtitle: 'Orang tua',
-                            icon: Icons.admin_panel_settings_outlined,
-                            selected: _selectedRole == 'admin',
-                            onTap: () =>
-                                setState(() => _selectedRole = 'admin'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _RoleTile(
-                            label: 'User',
-                            subtitle: 'Anggota',
-                            icon: Icons.person_outline,
-                            selected: _selectedRole == 'user',
-                            onTap: () =>
-                                setState(() => _selectedRole = 'user'),
-                          ),
-                        ),
-                      ],
                     ),
                     const SizedBox(height: 24),
 
@@ -211,69 +172,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleTile extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RoleTile({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: selected
-                ? const Color(0xFF1E3A5F)
-                : Colors.grey.shade300,
-            width: selected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          color: selected
-              ? const Color(0xFF1E3A5F).withValues(alpha: 0.07)
-              : Colors.transparent,
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: selected
-                  ? const Color(0xFF1E3A5F)
-                  : Colors.grey,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: selected
-                    ? const Color(0xFF1E3A5F)
-                    : Colors.grey,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
         ),
       ),
     );

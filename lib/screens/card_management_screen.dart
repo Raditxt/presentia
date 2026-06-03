@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../services/mqtt_service.dart';
 
 class CardManagementScreen extends StatefulWidget {
   const CardManagementScreen({super.key});
@@ -9,7 +11,8 @@ class CardManagementScreen extends StatefulWidget {
 }
 
 class _CardManagementScreenState extends State<CardManagementScreen> {
-  final _db = FirebaseDatabase.instance;
+  final _db   = FirebaseDatabase.instance;
+  final _mqtt = MqttService();
 
   Stream<List<Map<String, dynamic>>> _watchUsers() {
     return _db.ref('presentia/users').onValue.map((event) {
@@ -25,73 +28,155 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
   }
 
   Future<void> _editCard(Map<String, dynamic> user) async {
-    final cardCtrl = TextEditingController(
+    final cardCtrl    = TextEditingController(
         text: user['cardUID']?.toString() ?? '');
     String selectedRole = user['role']?.toString() ?? 'user';
+    bool   isScanning   = false;
+    StreamSubscription? scanSub;
+
+    // Aktifkan scan mode di ESP32
+    _mqtt.setScanMode(true);
 
     await showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlgState) => AlertDialog(
-          title: Text('Edit: ${user['name'] ?? ''}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: cardCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Card UID',
-                  hintText: 'Contoh: F7 51 86 63',
-                  border: OutlineInputBorder(),
-                  helperText: 'Salin dari Serial Monitor saat tap kartu',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          // Subscribe hasil scan → isi ke field otomatis
+          scanSub ??= _mqtt.scanStream.listen((uid) {
+            // Cek apakah dialog masih mounted sebelum mengubah state
+            if (ctx.mounted) {
+              setDlgState(() {
+                cardCtrl.text = uid;
+                isScanning    = false;
+              });
+            }
+            // Gunakan ctx yang sudah dicek mounted untuk menampilkan SnackBar
+            if (ctx.mounted) {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                SnackBar(
+                  content: Text('✅ UID terbaca: $uid'),
+                  backgroundColor: const Color(0xFF1D9E75),
+                  duration: const Duration(seconds: 2),
                 ),
+              );
+            }
+          });
+
+          return AlertDialog(
+            title: Text('Edit: ${user['name'] ?? ''}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Banner instruksi scan
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1D9E75).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF1D9E75).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      isScanning
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF1D9E75),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.nfc,
+                              color: Color(0xFF1D9E75),
+                              size: 18,
+                            ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Tap kartu ke reader RFID — UID otomatis terisi',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF1D9E75),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Field UID
+                TextField(
+                  controller: cardCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Card UID',
+                    hintText: 'Tap kartu atau isi manual',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.credit_card),
+                    helperText: 'Contoh: F7 51 86 63',
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Role selector
+                const Text(
+                  'Role:',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    _RoleOption(
+                      label: 'Admin',
+                      selected: selectedRole == 'admin',
+                      onTap: () =>
+                          setDlgState(() => selectedRole = 'admin'),
+                    ),
+                    const SizedBox(width: 8),
+                    _RoleOption(
+                      label: 'User',
+                      selected: selectedRole == 'user',
+                      onTap: () =>
+                          setDlgState(() => selectedRole = 'user'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal'),
               ),
-              const SizedBox(height: 16),
-              const Text('Role:', style: TextStyle(fontSize: 13)),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  _RoleOption(
-                    label: 'Admin',
-                    selected: selectedRole == 'admin',
-                    onTap: () =>
-                        setDlgState(() => selectedRole = 'admin'),
-                  ),
-                  const SizedBox(width: 8),
-                  _RoleOption(
-                    label: 'User',
-                    selected: selectedRole == 'user',
-                    onTap: () =>
-                        setDlgState(() => selectedRole = 'user'),
-                  ),
-                ],
+              ElevatedButton(
+                onPressed: () async {
+                  await _db
+                      .ref('presentia/users/${user['uid']}')
+                      .update({
+                    'cardUID': cardCtrl.text.trim().toUpperCase(),
+                    'role': selectedRole,
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A5F),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Simpan'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await _db.ref('presentia/users/${user['uid']}').update({
-                  'cardUID': cardCtrl.text.trim().toUpperCase(),
-                  'role': selectedRole,
-                });
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E3A5F),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Simpan'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
+
+    // Cleanup saat dialog ditutup
+    _mqtt.setScanMode(false);
+    scanSub?.cancel();
   }
 
   Future<void> _deleteUser(String uid, String name) async {
@@ -99,7 +184,8 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Akun'),
-        content: Text('Hapus akun "$name"? Tindakan ini tidak bisa dibatalkan.'),
+        content: Text(
+            'Hapus akun "$name"? Tindakan ini tidak bisa dibatalkan.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -138,8 +224,10 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
-              child: Text('Tidak ada user terdaftar',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Tidak ada user terdaftar',
+                style: TextStyle(color: Colors.grey),
+              ),
             );
           }
 
@@ -147,9 +235,9 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: users.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8), // Perbaikan: (_, _)
             itemBuilder: (context, index) {
-              final user = users[index];
+              final user     = users[index];
               final role     = user['role']?.toString()    ?? 'user';
               final name     = user['name']?.toString()    ?? '-';
               final email    = user['email']?.toString()   ?? '-';
@@ -221,7 +309,7 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              // Online indicator
+                              // Dot online indicator
                               Container(
                                 width: 7,
                                 height: 7,
@@ -263,7 +351,7 @@ class _CardManagementScreenState extends State<CardManagementScreen> {
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, color: Colors.grey),
                       onSelected: (val) {
-                        if (val == 'edit') _editCard(user);
+                        if (val == 'edit')   _editCard(user);
                         if (val == 'delete') _deleteUser(user['uid'], name);
                       },
                       itemBuilder: (_) => [

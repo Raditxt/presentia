@@ -67,6 +67,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onPressed: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => CardManagementScreen())),
             ),
+          // ✅ TAMBAHAN: Tombol Reset State untuk admin
+          if (_role == 'admin')
+            IconButton(
+              icon: const Icon(Icons.restart_alt),
+              tooltip: 'Reset State',
+              onPressed: () async {
+                await _db.resetState();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('State direset'),
+                      backgroundColor: Color(0xFF1D9E75),
+                    ),
+                  );
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'Log Aktivitas',
@@ -95,7 +112,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final lampuRumah   = state['lampuRumah']   ?? false;
           final isMalam      = state['isMalam']      ?? false;
           
-          // 🔧 Perubahan: gunakan 'kipas' bukan 'led'
           final kamarAdmin = Map<String, dynamic>.from(
               state['kamarAdmin'] ?? {'lampu': false, 'kipas': false});
           final kamarUser = Map<String, dynamic>.from(
@@ -106,8 +122,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // ── Status hunian ──────────────────────────
                 const _SectionTitle('Status Rumah'),
                 const SizedBox(height: 8),
                 Row(children: [
@@ -139,12 +153,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '$counter orang di dalam rumah',
-                  style: const TextStyle(
-                      fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 20),
 
-                // ── Output rumah ───────────────────────────
                 const _SectionTitle('Output Rumah'),
                 const SizedBox(height: 8),
                 _OutputTile(
@@ -158,7 +170,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Kamar Admin ────────────────────────────
                 const _SectionTitle('Kamar Admin'),
                 const SizedBox(height: 8),
                 _OutputTile(
@@ -173,7 +184,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : null,
                 ),
                 const SizedBox(height: 8),
-                // 🔧 Perubahan: gunakan 'kipas' bukan 'led'
                 _OutputTile(
                   label: 'Kipas Kamar Admin',
                   icon: Icons.wind_power,
@@ -187,7 +197,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Kamar User ─────────────────────────────
                 const _SectionTitle('Kamar User'),
                 const SizedBox(height: 8),
                 _OutputTile(
@@ -200,7 +209,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-                // 🔧 Perubahan: gunakan 'kipas' bukan 'led'
                 _OutputTile(
                   label: 'Kipas Kamar User',
                   icon: Icons.wind_power,
@@ -362,8 +370,7 @@ class _OutputTile extends StatelessWidget {
             )
           else
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(6),

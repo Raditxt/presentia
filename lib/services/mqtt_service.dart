@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ import auth
 import '../config/mqtt_config.dart';
 
 class MqttService {
@@ -17,6 +18,10 @@ class MqttService {
   final _db = FirebaseDatabase.instance;
   final _msgController = StreamController<Map<String, String>>.broadcast();
   Stream<Map<String, String>> get messageStream => _msgController.stream;
+
+  // Stream khusus untuk hasil scan UID dari ESP32
+  final _scanController = StreamController<String>.broadcast();
+  Stream<String> get scanStream => _scanController.stream;
 
   Future<bool> connect() async {
     _client = MqttBrowserClient(
@@ -52,7 +57,9 @@ class MqttService {
       return false;
     }
 
+    // Subscribe ke topic event dan topic scan result
     _client.subscribe(MqttConfig.topicEvent, MqttQos.atLeastOnce);
+    _client.subscribe(MqttConfig.topicScanResult, MqttQos.atLeastOnce);
     _client.updates!.listen(_onMessage);
     _isConnected = true;
     return true;
@@ -68,11 +75,32 @@ class MqttService {
       _msgController.add({'topic': topic, 'payload': payload});
       if (topic == MqttConfig.topicEvent) {
         _handleEvent(payload);
+      } else if (topic == MqttConfig.topicScanResult) {
+        _handleScanResult(payload);
       }
     }
   }
 
+  // Handle UID yang dikirim ESP32 saat mode scan aktif
+  void _handleScanResult(String uid) {
+    debugPrint('[MQTT SCAN] UID diterima: $uid');
+    _scanController.add(uid);
+  }
+
+  // Aktifkan/nonaktifkan mode scan di ESP32
+  void setScanMode(bool active) {
+    publish(MqttConfig.topicScanMode, active ? 'ON' : 'OFF');
+    debugPrint('[MQTT] Scan mode: ${active ? "ON" : "OFF"}');
+  }
+
   Future<void> _handleEvent(String event) async {
+    // ✅ Jika user belum login, skip — tidak bisa tulis Firebase
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      debugPrint('[MQTT] Skip event $event — user belum login');
+      return;
+    }
+
     final ref = _db.ref('presentia/state');
     final logRef = _db.ref('presentia/log');
     final now = DateTime.now();
@@ -93,7 +121,6 @@ class MqttService {
           'kamarAdmin/lampu': true,
           'counter': counter,
         });
-        // 🔹 Tambahkan log untuk admin masuk
         await logRef.push().set({
           'role': 'admin',
           'action': 'masuk',

@@ -73,6 +73,19 @@ class DatabaseService {
     }
   }
 
+  // ── Reset state ke nilai default (dengan kipas) ────────
+  Future<void> resetState() async {
+    await _db.ref('presentia/state').set({
+      'adminPresent': false,
+      'userPresent': false,
+      'counter': 0,
+      'lampuRumah': false,
+      'isMalam': false,
+      'kamarAdmin': {'lampu': false, 'kipas': false},
+      'kamarUser':  {'lampu': false, 'kipas': false},
+    });
+  }
+
   Map<String, dynamic> _defaultState() => {
     'adminPresent': false,
     'userPresent': false,
